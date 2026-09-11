@@ -4,7 +4,13 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+
+// =========================
+// CREATE SALE
+// =========================
 router.post("/", authMiddleware, async (req, res) => {
+  console.log("REQ.USER:", req.user);
+
   const connection = await pool.getConnection();
 
   try {
@@ -19,6 +25,13 @@ router.post("/", authMiddleware, async (req, res) => {
     if (amount_paid === undefined || Number(amount_paid) < 0) {
       return res.status(400).json({
         message: "Invalid amount paid",
+      });
+    }
+
+    // Make sure authenticated user exists
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        message: "Authenticated user not found",
       });
     }
 
@@ -78,6 +91,9 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const changeAmount = paid - totalAmount;
 
+    // =========================
+    // INSERT SALE
+    // =========================
     const [saleResult] = await connection.query(
       `
       INSERT INTO sales
@@ -94,6 +110,10 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const saleId = saleResult.insertId;
 
+    // =========================
+    // INSERT SALE ITEMS
+    // AND UPDATE STOCK
+    // =========================
     for (const item of saleItems) {
       await connection.query(
         `
@@ -116,7 +136,10 @@ router.post("/", authMiddleware, async (req, res) => {
         SET stock_quantity = stock_quantity - ?
         WHERE id = ?
         `,
-        [item.quantity, item.productId]
+        [
+          item.quantity,
+          item.productId,
+        ]
       );
     }
 
@@ -129,6 +152,7 @@ router.post("/", authMiddleware, async (req, res) => {
       amount_paid: paid,
       change_amount: changeAmount,
     });
+
   } catch (error) {
     await connection.rollback();
 
@@ -137,18 +161,20 @@ router.post("/", authMiddleware, async (req, res) => {
     res.status(400).json({
       message: error.message,
     });
+
   } finally {
     connection.release();
   }
 });
 
 
-
-
-
+// =========================
+// GET SALES HISTORY
+// =========================
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const [sales] = await pool.query(`
+    const [sales] = await pool.query(
+      `
       SELECT
         id,
         user_id,
@@ -158,9 +184,11 @@ router.get("/", authMiddleware, async (req, res) => {
         created_at
       FROM sales
       ORDER BY created_at DESC
-    `);
+      `
+    );
 
     res.json(sales);
+
   } catch (error) {
     console.error(error);
 
@@ -171,9 +199,9 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 
-
-
-
+// =========================
+// GET SALE DETAILS
+// =========================
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const saleId = Number(req.params.id);
@@ -220,6 +248,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
       sale: sales[0],
       items,
     });
+
   } catch (error) {
     console.error(error);
 
@@ -228,5 +257,6 @@ router.get("/:id", authMiddleware, async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;
