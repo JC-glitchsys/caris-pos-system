@@ -5,9 +5,11 @@ const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
 
 
-// =========================
+
 // CREATE SALE
-// =========================
+
+
+
 router.post("/", authMiddleware, async (req, res) => {
   console.log("REQ.USER:", req.user);
 
@@ -28,7 +30,7 @@ router.post("/", authMiddleware, async (req, res) => {
       });
     }
 
-    // Make sure authenticated user exists
+   
     if (!req.user || !req.user.id) {
       return res.status(401).json({
         message: "Authenticated user not found",
@@ -91,9 +93,11 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const changeAmount = paid - totalAmount;
 
-    // =========================
-    // INSERT SALE
-    // =========================
+    
+
+
+// INSERT
+
     const [saleResult] = await connection.query(
       `
       INSERT INTO sales
@@ -110,10 +114,11 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const saleId = saleResult.insertId;
 
-    // =========================
+    
     // INSERT SALE ITEMS
     // AND UPDATE STOCK
-    // =========================
+    
+
     for (const item of saleItems) {
       await connection.query(
         `
@@ -168,9 +173,13 @@ router.post("/", authMiddleware, async (req, res) => {
 });
 
 
-// =========================
+
+
+
 // GET SALES HISTORY
-// =========================
+
+
+
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const [sales] = await pool.query(
@@ -199,9 +208,7 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 
-// =========================
-// GET SALE DETAILS
-// =========================
+
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const saleId = Number(req.params.id);
