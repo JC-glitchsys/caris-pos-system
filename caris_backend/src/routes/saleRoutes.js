@@ -4,15 +4,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-
-
-// CREATE SALE
-
-
-
 router.post("/", authMiddleware, async (req, res) => {
-  console.log("REQ.USER:", req.user);
-
   const connection = await pool.getConnection();
 
   try {
@@ -24,32 +16,55 @@ router.post("/", authMiddleware, async (req, res) => {
       });
     }
 
-    if (amount_paid === undefined || Number(amount_paid) < 0) {
+    const paid = Number(amount_paid);
+
+    if (
+      amount_paid === undefined ||
+      amount_paid === null ||
+      Number.isNaN(paid) ||
+      paid < 0
+    ) {
       return res.status(400).json({
         message: "Invalid amount paid",
       });
     }
 
-   
     if (!req.user || !req.user.id) {
       return res.status(401).json({
         message: "Authenticated user not found",
       });
     }
 
-    await connection.beginTransaction();
-
-    let totalAmount = 0;
-    const saleItems = [];
+    const mergedItemsMap = new Map();
 
     for (const item of items) {
       const productId = Number(item.product_id);
       const quantity = Number(item.quantity);
 
+      if (!Number.isInteger(productId) || productId <= 0) {
+        throw new Error("Invalid product");
+      }
+
       if (!Number.isInteger(quantity) || quantity <= 0) {
         throw new Error("Invalid quantity");
       }
 
+      mergedItemsMap.set(
+        productId,
+        (mergedItemsMap.get(productId) || 0) + quantity
+      );
+    }
+
+    const mergedItems = Array.from(mergedItemsMap.entries()).map(
+      ([productId, quantity]) => ({ productId, quantity })
+    );
+
+    await connection.beginTransaction();
+
+    let totalAmount = 0;
+    const saleItems = [];
+
+    for (const { productId, quantity } of mergedItems) {
       const [products] = await connection.query(
         `
         SELECT id, name, price, stock_quantity
@@ -67,9 +82,7 @@ router.post("/", authMiddleware, async (req, res) => {
       const product = products[0];
 
       if (product.stock_quantity < quantity) {
-        throw new Error(
-          `Insufficient stock for ${product.name}`
-        );
+        throw new Error(`Insufficient stock for ${product.name}`);
       }
 
       const unitPrice = Number(product.price);
@@ -85,18 +98,11 @@ router.post("/", authMiddleware, async (req, res) => {
       });
     }
 
-    const paid = Number(amount_paid);
-
     if (paid < totalAmount) {
       throw new Error("Amount paid is insufficient");
     }
 
     const changeAmount = paid - totalAmount;
-
-    
-
-
-// INSERT
 
     const [saleResult] = await connection.query(
       `
@@ -104,20 +110,10 @@ router.post("/", authMiddleware, async (req, res) => {
       (user_id, total_amount, amount_paid, change_amount)
       VALUES (?, ?, ?, ?)
       `,
-      [
-        req.user.id,
-        totalAmount,
-        paid,
-        changeAmount,
-      ]
+      [req.user.id, totalAmount, paid, changeAmount]
     );
 
     const saleId = saleResult.insertId;
-
-    
-    // INSERT SALE ITEMS
-    // AND UPDATE STOCK
-    
 
     for (const item of saleItems) {
       await connection.query(
@@ -126,13 +122,7 @@ router.post("/", authMiddleware, async (req, res) => {
         (sale_id, product_id, quantity, unit_price, subtotal)
         VALUES (?, ?, ?, ?, ?)
         `,
-        [
-          saleId,
-          item.productId,
-          item.quantity,
-          item.unitPrice,
-          item.subtotal,
-        ]
+        [saleId, item.productId, item.quantity, item.unitPrice, item.subtotal]
       );
 
       await connection.query(
@@ -141,10 +131,7 @@ router.post("/", authMiddleware, async (req, res) => {
         SET stock_quantity = stock_quantity - ?
         WHERE id = ?
         `,
-        [
-          item.quantity,
-          item.productId,
-        ]
+        [item.quantity, item.productId]
       );
     }
 
@@ -156,29 +143,17 @@ router.post("/", authMiddleware, async (req, res) => {
       total_amount: totalAmount,
       amount_paid: paid,
       change_amount: changeAmount,
+      items: saleItems,
     });
-
   } catch (error) {
     await connection.rollback();
-
-    console.error(error);
-
     res.status(400).json({
       message: error.message,
     });
-
   } finally {
     connection.release();
   }
 });
-
-
-
-
-
-// GET SALES HISTORY
-
-
 
 router.get("/", authMiddleware, async (req, res) => {
   try {
@@ -197,21 +172,22 @@ router.get("/", authMiddleware, async (req, res) => {
     );
 
     res.json(sales);
-
   } catch (error) {
-    console.error(error);
-
     res.status(500).json({
       message: "Failed to fetch sales",
     });
   }
 });
 
-
-
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const saleId = Number(req.params.id);
+
+    if (!Number.isInteger(saleId) || saleId <= 0) {
+      return res.status(400).json({
+        message: "Invalid sale id",
+      });
+    }
 
     const [sales] = await pool.query(
       `
@@ -255,15 +231,11 @@ router.get("/:id", authMiddleware, async (req, res) => {
       sale: sales[0],
       items,
     });
-
   } catch (error) {
-    console.error(error);
-
     res.status(500).json({
       message: "Failed to fetch sale",
     });
   }
 });
-
 
 module.exports = router;
