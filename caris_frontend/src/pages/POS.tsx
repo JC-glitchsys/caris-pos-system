@@ -1,9 +1,21 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import {
+  ReceiptText,
+  Moon,
+  Sun,
+  LogOut,
+  Search,
+  SlidersHorizontal,
+  Tag,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 
 import ProductGrid from "../components/ProductGrid";
 import Cart from "../components/Cart";
@@ -72,13 +84,13 @@ function POS() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F2EDD5] dark:bg-gray-950 p-4 transition-colors">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF6E9] to-[#F2EDD5] dark:from-gray-950 dark:to-gray-900 p-4 transition-colors">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 mb-8">
+        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 mb-8 pb-6 border-b border-[#D9501E]/10">
           <div>
-            <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-[#D9501E]">
+            <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-[#D9501E] drop-shadow-sm">
               POS System
             </h1>
 
@@ -89,22 +101,31 @@ function POS() {
 
           <div className="flex flex-wrap gap-2">
             <Link to="/sales">
-              <Button variant="outline">
+              <Button variant="outline" className="gap-2 shadow-sm">
+                <ReceiptText className="h-4 w-4" />
                 Sales History
               </Button>
             </Link>
 
             <Button
               variant="outline"
+              className="gap-2 shadow-sm"
               onClick={toggleDarkMode}
             >
+              {darkMode ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
               {darkMode ? "Light Mode" : "Dark Mode"}
             </Button>
 
             <Button
               variant="outline"
+              className="gap-2 shadow-sm"
               onClick={logout}
             >
+              <LogOut className="h-4 w-4" />
               Logout
             </Button>
           </div>
@@ -116,85 +137,110 @@ function POS() {
           {/* Products */}
           <div className="lg:col-span-2 space-y-4">
 
-            {/* Search + Sort */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                className="flex-1"
-                placeholder="Search products..."
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
-                }
-              />
+            {/* Search + Sort + Categories */}
+            <Card className="border-[#D9501E]/15 shadow-lg shadow-black/5 dark:shadow-black/30">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search products..."
+                      value={search}
+                      onChange={(e) =>
+                        setSearch(e.target.value)
+                      }
+                    />
+                  </div>
 
-              <select
-                value={sort}
-                onChange={(e) =>
-                  setSort(e.target.value)
-                }
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">
-                  Sort
-                </option>
-                <option value="name-asc">
-                  Name: A-Z
-                </option>
-                <option value="name-desc">
-                  Name: Z-A
-                </option>
-                <option value="price-low">
-                  Price: Low to High
-                </option>
-                <option value="price-high">
-                  Price: High to Low
-                </option>
-              </select>
-            </div>
+                  <div className="relative">
+                    <SlidersHorizontal className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <select
+                      value={sort}
+                      onChange={(e) =>
+                        setSort(e.target.value)
+                      }
+                      className="h-10 w-full sm:w-auto rounded-md border border-input bg-background pl-9 pr-3 text-sm"
+                    >
+                      <option value="">
+                        Sort
+                      </option>
+                      <option value="name-asc">
+                        Name: A-Z
+                      </option>
+                      <option value="name-desc">
+                        Name: Z-A
+                      </option>
+                      <option value="price-low">
+                        Price: Low to High
+                      </option>
+                      <option value="price-high">
+                        Price: High to Low
+                      </option>
+                    </select>
+                  </div>
+                </div>
 
-            {/* Categories */}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={
-                  category === ""
-                    ? "default"
-                    : "outline"
-                }
-                onClick={() => setCategory("")}
-              >
-                All
-              </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Tag className="h-3.5 w-3.5 text-[#D9501E]/60 mr-1" />
 
-              {categories.map((item) => (
-                <Button
-                  key={item}
-                  variant={
-                    category === item
-                      ? "default"
-                      : "outline"
-                  }
-                  onClick={() =>
-                    setCategory(item)
-                  }
-                >
-                  {item}
-                </Button>
-              ))}
-            </div>
+                  <Button
+                    size="sm"
+                    className={
+                      category === ""
+                        ? "rounded-full bg-[#D9501E] hover:bg-[#b5400f]"
+                        : "rounded-full"
+                    }
+                    variant={
+                      category === ""
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() => setCategory("")}
+                  >
+                    All
+                  </Button>
+
+                  {categories.map((item) => (
+                    <Button
+                      key={item}
+                      size="sm"
+                      className={
+                        category === item
+                          ? "rounded-full bg-[#D9501E] hover:bg-[#b5400f]"
+                          : "rounded-full"
+                      }
+                      variant={
+                        category === item
+                          ? "default"
+                          : "outline"
+                      }
+                      onClick={() =>
+                        setCategory(item)
+                      }
+                    >
+                      {item}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Products */}
             {isLoading && (
-              <p className="text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin text-[#D9501E]" />
                 Loading products...
-              </p>
+              </div>
             )}
 
             {error && (
-              <p className="text-red-600">
+              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900 px-4 py-3 text-red-600">
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 {error instanceof Error
                   ? error.message
                   : "Failed to load products."}
-              </p>
+              </div>
             )}
 
             {!isLoading && !error && (
